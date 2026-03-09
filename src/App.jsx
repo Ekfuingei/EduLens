@@ -143,32 +143,33 @@ export default function App() {
               return;
             }
             if (msg.setupComplete || msg.setup_complete) {
+              audioPlayerRef.current?.playTestSound?.();
               ws.send(createGreetingTrigger(captureMode));
               return;
             }
+            // Collect all audio data from various Gemini response formats
+            const audioChunks = [];
             const turn = msg.serverContent?.modelTurn ?? msg.server_content?.model_turn;
-            const parts = turn?.parts;
-            if (parts) {
-              for (const part of parts) {
-                const data = part.inlineData?.data ?? part.inline_data?.data;
-                if (data) {
-                  audioPlayerRef.current?.playPcmChunk(data).catch((e) =>
-                    console.warn('Audio play failed:', e)
-                  );
-                }
+            const parts = turn?.parts ?? turn?.Parts ?? [];
+            for (const part of parts) {
+              const data = part.inlineData?.data ?? part.inline_data?.data;
+              const mime = (part.inlineData?.mimeType ?? part.inline_data?.mime_type ?? '').toLowerCase();
+              if (data && (mime.includes('audio') || mime.includes('pcm') || !mime)) {
+                audioChunks.push(data);
               }
             }
-            // Also check realtimeOutput for streaming audio
             const realtime = msg.realtimeOutput ?? msg.realtime_output;
-            const rtParts = realtime?.mediaChunks ?? realtime?.media_chunks;
-            if (rtParts) {
-              for (const p of rtParts) {
-                if ((p.mimeType === 'audio/pcm;rate=24000' || p.mimeType === 'audio/pcm') && p.data) {
-                  audioPlayerRef.current?.playPcmChunk(p.data).catch((e) =>
-                    console.warn('Audio play failed:', e)
-                  );
-                }
+            const rtParts = realtime?.mediaChunks ?? realtime?.media_chunks ?? [];
+            for (const p of rtParts) {
+              const mime = (p.mimeType ?? p.mime_type ?? '').toLowerCase();
+              if ((mime.includes('pcm') || mime.includes('audio')) && p.data) {
+                audioChunks.push(p.data);
               }
+            }
+            for (const data of audioChunks) {
+              audioPlayerRef.current?.playPcmChunk(data).catch((e) =>
+                console.warn('EduLens audio play failed:', e)
+              );
             }
           } catch (_) {}
         };
