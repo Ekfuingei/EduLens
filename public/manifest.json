@@ -1,0 +1,17 @@
+{
+  "name": "EduLens",
+  "short_name": "EduLens",
+  "description": "A tutor that sees your homework, talks with you like a human, and never loses patience.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf8f5",
+  "theme_color": "#faf8f5",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

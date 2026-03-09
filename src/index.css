@@ -1,0 +1,61 @@
+:root {
+  /* EduLens brand palette (matches logo) */
+  --cream: #faf8f5;
+  --paper: #f5f1eb;
+  --ink: #1a1a1a;
+  --ink-muted: #5c5c5c;
+  --ink-soft: #8a8a8a;
+
+  /* Brand — coral/orange (Edu, tassel, aperture) */
+  --coral: #e76f51;
+  --coral-light: #f4a261;
+  --coral-dark: #c55a42;
+
+  /* Brand — teal (Lens, aperture) */
+  --teal: #2a9d8f;
+  --teal-light: #3db5a8;
+  --teal-soft: #e0f2f1;
+
+  /* Brand — navy (camera, graduation cap) */
+  --navy: #2c486f;
+  --navy-light: #3d5a80;
+
+  /* Semantic */
+  --success: #2a9d8f;
+  --live: #2a9d8f;
+  --error: #e76f51;
+  --warning: #e9c46a;
+
+  /* Shadows */
+  --shadow-soft: 0 2px 8px rgba(26, 26, 26, 0.06);
+  --shadow-card: 0 4px 20px rgba(26, 26, 26, 0.08);
+  --shadow-lift: 0 12px 40px rgba(26, 26, 26, 0.12);
+
+  /* Radius */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+#root {
+  min-height: 100vh;
+}
