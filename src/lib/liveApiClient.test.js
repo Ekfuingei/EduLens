@@ -18,7 +18,7 @@ describe('liveApiClient', () => {
     it('contains setup with model and generation_config (snake_case)', () => {
       const msg = JSON.parse(createSetupMessage());
       expect(msg).toHaveProperty('setup');
-      expect(msg.setup).toHaveProperty('model', 'models/gemini-2.0-flash-live-001');
+      expect(msg.setup).toHaveProperty('model', 'models/gemini-2.5-flash-native-audio-preview-12-2025');
       expect(msg.setup).toHaveProperty('generation_config');
       expect(msg.setup.generation_config.response_modalities).toContain('AUDIO');
     });
@@ -35,7 +35,7 @@ describe('liveApiClient', () => {
   describe('createSetupMessageFallback', () => {
     it('uses same model and config', () => {
       const msg = JSON.parse(createSetupMessageFallback());
-      expect(msg.setup.model).toBe('models/gemini-2.0-flash-live-001');
+      expect(msg.setup.model).toBe('models/gemini-2.5-flash-native-audio-preview-12-2025');
     });
   });
 
