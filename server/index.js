@@ -75,11 +75,10 @@ export function startServer(port = PORT) {
     httpServer.listen(port, () => {
       const actualPort = httpServer.address().port;
       if (process.env.NODE_ENV !== 'test') {
-        console.log(`EduLens server running on port ${actualPort}`);
-        if (!getGeminiApiKey()) {
-          console.warn(
-            'WARNING: GEMINI_API_KEY not set. Set it in .env or environment.'
-          );
+        const hasKey = !!getGeminiApiKey();
+        console.log(`EduLens server running on port ${actualPort} | GEMINI_API_KEY: ${hasKey ? 'set' : 'NOT SET'}`);
+        if (!hasKey) {
+          console.warn('WARNING: GEMINI_API_KEY not set. Check Cloud Run Variables & Secrets.');
         }
       }
       resolve(httpServer);
