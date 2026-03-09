@@ -33,7 +33,7 @@ describe('liveApiClient', () => {
       const text = msg.setup.systemInstruction.parts[0].text;
       expect(text).toContain('EduLens');
       expect(text).toContain('SOCRATIC');
-      expect(text).toContain('homework');
+      expect(text).toContain('subject');
     });
   });
 

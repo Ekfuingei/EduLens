@@ -87,6 +87,10 @@ gcloud builds submit --config=cloudbuild.yaml
 
 Set `GEMINI_API_KEY` in Cloud Run environment variables (Secret Manager recommended).
 
+### Option 3: Frontend on Vercel + backend on Cloud Run
+
+Deploy the frontend to Vercel and keep the backend on Cloud Run. See **[docs/DEPLOY_VERCEL.md](docs/DEPLOY_VERCEL.md)**. Set `VITE_WS_URL=wss://your-cloud-run-url/ws` in Vercel environment variables.
+
 ## Architecture
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system design and data flow.

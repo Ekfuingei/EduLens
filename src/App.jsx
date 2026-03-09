@@ -8,10 +8,14 @@ import {
 } from './lib/liveApiClient';
 import { createAudioPlayer } from './lib/audioPlayer';
 
-const WS_URL = (() => {
-  const base = window.location.origin.replace(/^http/, 'ws');
-  return `${base}/ws`;
-})();
+// When frontend is on Vercel, point to Cloud Run backend. Otherwise same-origin.
+const WS_URL =
+  import.meta.env.VITE_WS_URL ||
+  `${window.location.origin.replace(/^http/, 'ws')}/ws`;
+// Debug: open DevTools Console, click Camera/Screen — you'll see which URL is used
+if (typeof window !== 'undefined') {
+  window.__EDULENS_WS_URL__ = WS_URL;
+}
 
 const SESSION_TIPS = [
   'Say "I need help with this problem" to get started.',
@@ -31,6 +35,7 @@ export default function App() {
   const videoFrameIntervalRef = useRef(null);
   const audioPlayerRef = useRef(null);
   const previewVideoRef = useRef(null);
+  const userClosedRef = useRef(false);
 
   const {
     startCamera,
@@ -51,6 +56,7 @@ export default function App() {
 
   const connectAndStart = useCallback(
     async (captureMode) => {
+      userClosedRef.current = false;
       setStatus('connecting');
       setError(null);
       setMode(captureMode);
@@ -124,8 +130,13 @@ export default function App() {
         };
 
         ws.onclose = () => {
-          setStatus('idle');
-          stopAll();
+          if (!userClosedRef.current) {
+            setError(
+              'Connection closed. Ensure GEMINI_API_KEY is set in Cloud Run and try again.'
+            );
+            setStatus('error');
+          }
+          stopAll(false);
         };
       } catch (err) {
         setError(err.message || 'Failed to start. Allow camera/microphone access.');
@@ -143,7 +154,8 @@ export default function App() {
     ]
   );
 
-  const stopAll = useCallback(() => {
+  const stopAll = useCallback((returnToIdle = true) => {
+    userClosedRef.current = returnToIdle;
     if (videoFrameIntervalRef.current) {
       clearInterval(videoFrameIntervalRef.current);
       videoFrameIntervalRef.current = null;
@@ -158,7 +170,7 @@ export default function App() {
       previewVideoRef.current.srcObject = null;
     }
     setMode(null);
-    setStatus('idle');
+    if (returnToIdle) setStatus('idle');
   }, [stopCapture]);
 
   useEffect(() => () => stopAll(), [stopAll]);
@@ -188,7 +200,7 @@ export default function App() {
                 <span className="option-icon">📱</span>
                 <div className="option-content">
                   <p className="option-title">Camera on paper</p>
-                  <p className="option-desc">Best for math, handwriting, worksheets</p>
+                  <p className="option-desc">Best for handwriting, notes, worksheets</p>
                 </div>
               </button>
               <button
@@ -199,7 +211,7 @@ export default function App() {
                 <span className="option-icon">💻</span>
                 <div className="option-content">
                   <p className="option-title">Share screen</p>
-                  <p className="option-desc">For coding, docs, Khan Academy, etc.</p>
+                  <p className="option-desc">For coding, docs, research, any digital work</p>
                 </div>
               </button>
             </div>
