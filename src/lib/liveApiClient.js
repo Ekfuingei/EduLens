@@ -72,8 +72,23 @@ export function createRealtimeInput(payload) {
   });
 }
 
-/** Send after setupComplete to trigger tutor to greet the student in voice */
+/** Send after setupComplete - realtimeInput text prompts model to speak greeting */
 export function createGreetingTrigger(mode = 'camera') {
+  const userPrompt = 'Hi, I just connected. Please say hello and introduce yourself out loud.';
+  return JSON.stringify({
+    realtimeInput: {
+      mediaChunks: [
+        {
+          mimeType: 'text/plain',
+          data: btoa(unescape(encodeURIComponent(userPrompt))),
+        },
+      ],
+    },
+  });
+}
+
+/** clientContent fallback - user turn to trigger spoken greeting */
+export function createGreetingTriggerClientContent(mode = 'camera') {
   const politeAck = mode === 'screen'
     ? 'Thank you for sharing your screen with me.'
     : 'Thank you for showing me your homework.';
@@ -82,11 +97,7 @@ export function createGreetingTrigger(mode = 'camera') {
       turns: [
         {
           role: 'user',
-          parts: [
-            {
-              text: `(The student has just connected. Greet them POLITELY by SPEAKING aloud. Say: "${politeAck} I'm EduLens and I'm live. I can see your work—what would you like help with? Just talk to me naturally. You can interrupt me anytime by saying wait or go back." Keep it warm and brief.)`,
-            },
-          ],
+          parts: [{ text: `Say out loud: "${politeAck} I'm EduLens and I'm live. What would you like help with? Just talk to me naturally."` }],
         },
       ],
       turnComplete: true,

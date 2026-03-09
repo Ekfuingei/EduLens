@@ -5,6 +5,7 @@ import {
   createAudioInput,
   createImageInput,
   createGreetingTrigger,
+  createGreetingTriggerClientContent,
   createRealtimeInput,
 } from './liveApiClient';
 
@@ -63,17 +64,24 @@ describe('liveApiClient', () => {
   });
 
   describe('createGreetingTrigger', () => {
-    it('returns clientContent with user turn', () => {
+    it('returns realtimeInput with text prompt', () => {
       const msg = JSON.parse(createGreetingTrigger());
-      expect(msg).toHaveProperty('clientContent');
-      expect(msg.clientContent.turns).toHaveLength(1);
-      expect(msg.clientContent.turns[0].role).toBe('user');
-      expect(msg.clientContent.turns[0].parts[0].text).toContain('student');
+      expect(msg).toHaveProperty('realtimeInput');
+      expect(msg.realtimeInput.mediaChunks).toHaveLength(1);
+      expect(msg.realtimeInput.mediaChunks[0].mimeType).toBe('text/plain');
     });
 
-    it('sets turnComplete true', () => {
+    it('includes greeting prompt', () => {
       const msg = JSON.parse(createGreetingTrigger());
-      expect(msg.clientContent.turnComplete).toBe(true);
+      const data = atob(msg.realtimeInput.mediaChunks[0].data);
+      expect(data).toContain('hello');
+    });
+  });
+
+  describe('createGreetingTriggerClientContent', () => {
+    it('returns clientContent with user turn', () => {
+      const msg = JSON.parse(createGreetingTriggerClientContent());
+      expect(msg.clientContent.turns[0].parts[0].text).toContain('EduLens');
     });
   });
 

@@ -133,9 +133,13 @@ export default function App() {
           }, 1500);
         };
 
+        const debugAudio = typeof window !== 'undefined' && /[?&]debug=1/.test(window.location.search);
         ws.onmessage = (event) => {
           try {
             const msg = JSON.parse(event.data);
+            if (debugAudio && !msg.setupComplete && !msg.setup_complete) {
+              console.log('[EduLens]', msg?.serverContent ? 'serverContent' : msg?.server_content ? 'server_content' : 'msg', Object.keys(msg));
+            }
             if (msg.type === 'error') {
               serverErrorRef.current = true;
               setError(msg.message || 'Connection error');
