@@ -26,40 +26,26 @@ const SocraticSystemInstruction = `You are EduLens, a patient, warm tutor who he
 export function createSetupMessage() {
   return JSON.stringify({
     setup: {
-      model: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
-      generationConfig: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: 'Aoede',
-            },
-          },
-        },
+      model: 'models/gemini-2.0-flash-live-001',
+      generation_config: {
+        response_modalities: ['AUDIO'],
       },
-      systemInstruction: {
+      system_instruction: {
         parts: [{ text: SocraticSystemInstruction }],
       },
     },
   });
 }
 
-// Fallback if preview model unavailable
+// Fallback if live model unavailable
 export function createSetupMessageFallback() {
   return JSON.stringify({
     setup: {
-      model: 'models/gemini-2.5-flash-preview',
-      generationConfig: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: 'Puck',
-            },
-          },
-        },
+      model: 'models/gemini-2.0-flash-live-001',
+      generation_config: {
+        response_modalities: ['AUDIO'],
       },
-      systemInstruction: {
+      system_instruction: {
         parts: [{ text: SocraticSystemInstruction }],
       },
     },
@@ -68,48 +54,33 @@ export function createSetupMessageFallback() {
 
 export function createRealtimeInput(payload) {
   return JSON.stringify({
-    realtimeInput: payload,
+    realtime_input: payload,
   });
 }
 
-/** Send after setupComplete - realtimeInput text prompts model to speak greeting */
+/** Send immediately after setupComplete - model requires this to speak */
 export function createGreetingTrigger(mode = 'camera') {
-  const userPrompt = 'Hi, I just connected. Please say hello and introduce yourself out loud.';
+  const prompt = mode === 'screen'
+    ? 'Begin the session by greeting the student. Thank them for sharing their screen.'
+    : 'Begin the session by greeting the student. Thank them for showing their homework.';
   return JSON.stringify({
-    realtimeInput: {
-      mediaChunks: [
-        {
-          mimeType: 'text/plain',
-          data: btoa(unescape(encodeURIComponent(userPrompt))),
-        },
-      ],
-    },
-  });
-}
-
-/** clientContent fallback - user turn to trigger spoken greeting */
-export function createGreetingTriggerClientContent(mode = 'camera') {
-  const politeAck = mode === 'screen'
-    ? 'Thank you for sharing your screen with me.'
-    : 'Thank you for showing me your homework.';
-  return JSON.stringify({
-    clientContent: {
+    client_content: {
       turns: [
         {
           role: 'user',
-          parts: [{ text: `Say out loud: "${politeAck} I'm EduLens and I'm live. What would you like help with? Just talk to me naturally."` }],
+          parts: [{ text: prompt }],
         },
       ],
-      turnComplete: true,
+      turn_complete: true,
     },
   });
 }
 
 export function createAudioInput(base64Pcm) {
   return createRealtimeInput({
-    mediaChunks: [
+    media_chunks: [
       {
-        mimeType: 'audio/pcm;rate=16000',
+        mime_type: 'audio/pcm;rate=16000',
         data: base64Pcm,
       },
     ],
@@ -118,9 +89,9 @@ export function createAudioInput(base64Pcm) {
 
 export function createImageInput(base64Jpeg) {
   return createRealtimeInput({
-    mediaChunks: [
+    media_chunks: [
       {
-        mimeType: 'image/jpeg',
+        mime_type: 'image/jpeg',
         data: base64Jpeg,
       },
     ],

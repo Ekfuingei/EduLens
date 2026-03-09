@@ -151,14 +151,14 @@ export default function App() {
               ws.send(createGreetingTrigger(captureMode));
               return;
             }
-            // Collect all audio data from various Gemini response formats
+            // Parse audio from serverContent.modelTurn.parts (API returns camelCase)
             const audioChunks = [];
-            const turn = msg.serverContent?.modelTurn ?? msg.server_content?.model_turn;
-            const parts = turn?.parts ?? turn?.Parts ?? [];
+            const parts = msg.serverContent?.modelTurn?.parts || msg.server_content?.model_turn?.parts || [];
             for (const part of parts) {
-              const data = part.inlineData?.data ?? part.inline_data?.data;
-              const mime = (part.inlineData?.mimeType ?? part.inline_data?.mime_type ?? '').toLowerCase();
-              if (data && (mime.includes('audio') || mime.includes('pcm') || !mime)) {
+              const inline = part.inlineData ?? part.inline_data;
+              const data = inline?.data;
+              const mime = (inline?.mimeType ?? inline?.mime_type ?? '').toLowerCase();
+              if (data && mime.startsWith('audio/pcm')) {
                 audioChunks.push(data);
               }
             }
@@ -166,7 +166,7 @@ export default function App() {
             const rtParts = realtime?.mediaChunks ?? realtime?.media_chunks ?? [];
             for (const p of rtParts) {
               const mime = (p.mimeType ?? p.mime_type ?? '').toLowerCase();
-              if ((mime.includes('pcm') || mime.includes('audio')) && p.data) {
+              if (mime.startsWith('audio/pcm') && p.data) {
                 audioChunks.push(p.data);
               }
             }
