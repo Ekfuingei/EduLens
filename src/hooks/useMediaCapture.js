@@ -36,6 +36,7 @@ export function useMediaCapture() {
       videoRef.current = document.createElement('video');
       videoRef.current.srcObject = stream;
       videoRef.current.playsInline = true;
+      videoRef.current.muted = true; // Required for iOS autoplay; we capture audio separately
       await videoRef.current.play();
       canvasRef.current = document.createElement('canvas');
       return { stream };
@@ -63,6 +64,7 @@ export function useMediaCapture() {
     videoRef.current = document.createElement('video');
     videoRef.current.srcObject = stream;
     videoRef.current.playsInline = true;
+    videoRef.current.muted = true;
     await videoRef.current.play();
     canvasRef.current = document.createElement('canvas');
     return { stream };

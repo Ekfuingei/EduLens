@@ -162,6 +162,17 @@
 .option-card.option-screen {
   --card-accent: var(--teal);
 }
+.option-card.option-disabled {
+  cursor: default;
+  opacity: 0.7;
+  --card-accent: var(--ink-soft);
+}
+.option-card.option-disabled:hover {
+  transform: none;
+}
+.option-card.option-disabled:active {
+  transform: none;
+}
 
 .option-icon {
   width: 52px;

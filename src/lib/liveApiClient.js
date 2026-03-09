@@ -7,7 +7,7 @@
 
 const SocraticSystemInstruction = `You are EduLens, a patient, warm tutor who helps with ANY subject—math, science, history, languages, coding, writing, arts, or anything else. You SEE the student's work in real time through their camera or screen.
 
-**CRITICAL: When the student joins, you MUST greet them out loud immediately.** Say something like "Hi! I'm EduLens, and I'm live. I can see your work—just tell me what you need help with. You can interrupt me anytime by saying 'wait' or 'go back'." Make sure they hear you so they know the session is working.
+**CRITICAL: When the student joins, you MUST greet them out loud immediately.** Be polite—thank them for sharing their screen or showing their homework. Say something like "Thank you for showing me your work! I'm EduLens and I'm live. What would you like help with? You can interrupt me anytime by saying 'wait' or 'go back'." Make sure they hear you so they know the session is working.
 
 **Give instructions by VOICE.** Don't rely on on-screen text—speak your guidance. Tell them aloud how to use you: "Just talk to me like a normal conversation", "Point at what you're stuck on", "You can interrupt me anytime".
 
@@ -74,9 +74,9 @@ export function createRealtimeInput(payload) {
 
 /** Send after setupComplete to trigger tutor to greet the student in voice */
 export function createGreetingTrigger(mode = 'camera') {
-  const context = mode === 'screen'
-    ? 'The student has shared their screen. You can see it.'
-    : 'The student has pointed their camera at their work. You can see it.';
+  const politeAck = mode === 'screen'
+    ? 'Thank you for sharing your screen with me.'
+    : 'Thank you for showing me your homework.';
   return JSON.stringify({
     clientContent: {
       turns: [
@@ -84,7 +84,7 @@ export function createGreetingTrigger(mode = 'camera') {
           role: 'user',
           parts: [
             {
-              text: `The student has just joined and you are now LIVE. ${context} Greet them OUT LOUD immediately so they know you're connected. Say hello, confirm you can see their work, and briefly tell them how to use you (e.g. "Just tell me what you need help with—you can interrupt me anytime by saying wait or go back"). Keep it short and warm.`,
+              text: `(The student has just connected. Greet them POLITELY by SPEAKING aloud. Say: "${politeAck} I'm EduLens and I'm live. I can see your work—what would you like help with? Just talk to me naturally. You can interrupt me anytime by saying wait or go back." Keep it warm and brief.)`,
             },
           ],
         },

@@ -29,6 +29,11 @@ const SESSION_TIPS_SCREEN = [
   'EduLens can see your screen.',
 ];
 
+// Screen share is not supported on mobile (getDisplayMedia)
+const canShareScreen =
+  typeof navigator !== 'undefined' &&
+  navigator.mediaDevices?.getDisplayMedia instanceof Function;
+
 export default function App() {
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
@@ -38,6 +43,7 @@ export default function App() {
 
   const wsRef = useRef(null);
   const videoFrameIntervalRef = useRef(null);
+  const videoFrameTimeoutRef = useRef(null);
   const audioPlayerRef = useRef(null);
   const previewVideoRef = useRef(null);
   const userClosedRef = useRef(false);
@@ -70,6 +76,10 @@ export default function App() {
       setMode(captureMode);
 
       try {
+        // Unlock AudioContext on user gesture (required for mobile/Safari)
+        audioPlayerRef.current = createAudioPlayer();
+        audioPlayerRef.current.init().catch(() => {});
+
         const { stream } =
           captureMode === 'screen'
             ? await startScreenShare()
@@ -88,9 +98,6 @@ export default function App() {
           ws.send(createSetupMessage());
           setStatus('connected');
 
-          audioPlayerRef.current = createAudioPlayer();
-          audioPlayerRef.current.init();
-
           if (!isMuted) {
             startAudioCapture(stream, (base64) => {
               if (ws.readyState === 1) {
@@ -99,12 +106,15 @@ export default function App() {
             });
           }
 
-          videoFrameIntervalRef.current = setInterval(() => {
-            const frame = captureVideoFrame();
-            if (frame && ws.readyState === 1) {
-              ws.send(createImageInput(frame));
-            }
-          }, 1000);
+          // Delay first frame so phone camera has time to produce video (readyState)
+          videoFrameTimeoutRef.current = setTimeout(() => {
+            videoFrameIntervalRef.current = setInterval(() => {
+              const frame = captureVideoFrame();
+              if (frame && ws.readyState === 1) {
+                ws.send(createImageInput(frame));
+              }
+            }, 1000);
+          }, 1500);
         };
 
         ws.onmessage = (event) => {
@@ -117,7 +127,7 @@ export default function App() {
               return;
             }
             if (msg.setupComplete || msg.setup_complete) {
-              ws.send(createGreetingTrigger(mode));
+              ws.send(createGreetingTrigger(captureMode));
               return;
             }
             const turn = msg.serverContent?.modelTurn ?? msg.server_content?.model_turn;
@@ -126,7 +136,21 @@ export default function App() {
               for (const part of parts) {
                 const data = part.inlineData?.data ?? part.inline_data?.data;
                 if (data) {
-                  audioPlayerRef.current?.playPcmChunk(data);
+                  audioPlayerRef.current?.playPcmChunk(data).catch((e) =>
+                    console.warn('Audio play failed:', e)
+                  );
+                }
+              }
+            }
+            // Also check realtimeOutput for streaming audio
+            const realtime = msg.realtimeOutput ?? msg.realtime_output;
+            const rtParts = realtime?.mediaChunks ?? realtime?.media_chunks;
+            if (rtParts) {
+              for (const p of rtParts) {
+                if ((p.mimeType === 'audio/pcm;rate=24000' || p.mimeType === 'audio/pcm') && p.data) {
+                  audioPlayerRef.current?.playPcmChunk(p.data).catch((e) =>
+                    console.warn('Audio play failed:', e)
+                  );
                 }
               }
             }
@@ -148,7 +172,12 @@ export default function App() {
           stopAll(false);
         };
       } catch (err) {
-        setError(err.message || 'Failed to start. Allow camera/microphone access.');
+        const msg = err.message || '';
+        if (msg.includes('getDisplayMedia') || msg.includes('not a function')) {
+          setError('Screen share isn\'t supported on phones. Use "Camera on paper" instead—it works great for notebooks and worksheets!');
+        } else {
+          setError(msg || 'Failed to start. Allow camera/microphone access.');
+        }
         setStatus('error');
         stopCapture();
       }
@@ -165,6 +194,10 @@ export default function App() {
 
   const stopAll = useCallback((returnToIdle = true) => {
     userClosedRef.current = returnToIdle;
+    if (videoFrameTimeoutRef.current) {
+      clearTimeout(videoFrameTimeoutRef.current);
+      videoFrameTimeoutRef.current = null;
+    }
     if (videoFrameIntervalRef.current) {
       clearInterval(videoFrameIntervalRef.current);
       videoFrameIntervalRef.current = null;
@@ -212,17 +245,27 @@ export default function App() {
                   <p className="option-desc">Best for handwriting, notes, worksheets</p>
                 </div>
               </button>
-              <button
-                type="button"
-                className="option-card option-screen"
-                onClick={() => connectAndStart('screen')}
-              >
-                <span className="option-icon">💻</span>
-                <div className="option-content">
-                  <p className="option-title">Share screen</p>
-                  <p className="option-desc">For coding, docs, research, any digital work</p>
+              {canShareScreen ? (
+                <button
+                  type="button"
+                  className="option-card option-screen"
+                  onClick={() => connectAndStart('screen')}
+                >
+                  <span className="option-icon">💻</span>
+                  <div className="option-content">
+                    <p className="option-title">Share screen</p>
+                    <p className="option-desc">For coding, docs, research (laptop/desktop)</p>
+                  </div>
+                </button>
+              ) : (
+                <div className="option-card option-screen option-disabled" title="Screen share is available on laptop/desktop">
+                  <span className="option-icon">💻</span>
+                  <div className="option-content">
+                    <p className="option-title">Share screen</p>
+                    <p className="option-desc">Use a laptop or desktop—not available on phones</p>
+                  </div>
                 </div>
-              </button>
+              )}
             </div>
           </div>
         )}
