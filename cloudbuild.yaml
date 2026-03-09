@@ -32,8 +32,10 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
-      - '--set-secrets'
-      - 'GEMINI_API_KEY=gemini-api-key:latest'
+      - '--remove-env-vars'
+      - 'GEMINI_API_KEY'
+      # After deploy succeeds: Cloud Run → Edit → Variables → Add GEMINI_API_KEY (your key)
+      # Then REMOVE the --remove-env-vars and GEMINI_API_KEY lines above so future deploys keep it
 
 images:
   - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$SHORT_SHA'
