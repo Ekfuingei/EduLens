@@ -29,6 +29,7 @@ export function useMediaCapture() {
           channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
+          autoGainControl: true,
         },
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -55,7 +56,12 @@ export function useMediaCapture() {
       audio: false,
     });
     const micStream = await navigator.mediaDevices.getUserMedia({
-      audio: { sampleRate: TARGET_AUDIO_SAMPLE_RATE, channelCount: 1 },
+      audio: {
+        sampleRate: TARGET_AUDIO_SAMPLE_RATE,
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+      },
     });
     const stream = new MediaStream();
     displayStream.getVideoTracks().forEach((t) => stream.addTrack(t));

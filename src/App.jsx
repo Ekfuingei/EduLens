@@ -21,15 +21,17 @@ const SESSION_TIPS_CAMERA = [
   'EduLens will guide you by voice — just talk naturally.',
   'Say "wait" or "go back" anytime to interrupt.',
   'Keep your work in view so EduLens can see it.',
+  'Use headphones for the best voice experience.',
 ];
 
 const SESSION_TIPS_SCREEN = [
   'EduLens will guide you by voice — just talk naturally.',
   'Say "wait" or "go back" anytime to interrupt.',
   'EduLens can see your screen.',
+  'Use headphones for the best voice experience.',
 ];
 
-// Screen share is not supported on mobile (getDisplayMedia)
+// Screen share: use getDisplayMedia when available
 const canShareScreen =
   typeof navigator !== 'undefined' &&
   navigator.mediaDevices?.getDisplayMedia instanceof Function;
@@ -46,6 +48,7 @@ export default function App() {
   const videoFrameTimeoutRef = useRef(null);
   const audioPlayerRef = useRef(null);
   const previewVideoRef = useRef(null);
+  const streamRef = useRef(null);
   const userClosedRef = useRef(false);
   const serverErrorRef = useRef(false);
 
@@ -56,6 +59,18 @@ export default function App() {
     startAudioCapture,
     stopCapture,
   } = useMediaCapture();
+
+  // Attach stream to preview when connected (video mounts only then)
+  useEffect(() => {
+    if (status !== 'connected' || !previewVideoRef.current || !streamRef.current) return;
+    const video = previewVideoRef.current;
+    video.srcObject = streamRef.current;
+    video.muted = true;
+    video.play().catch(() => {});
+    return () => {
+      video.srcObject = null;
+    };
+  }, [status]);
 
   // Rotate tips every 6 seconds when connected (mode-aware)
   const sessionTips = mode === 'screen' ? SESSION_TIPS_SCREEN : SESSION_TIPS_CAMERA;
@@ -78,18 +93,19 @@ export default function App() {
       try {
         // Unlock AudioContext on user gesture (required for mobile/Safari)
         audioPlayerRef.current = createAudioPlayer();
-        audioPlayerRef.current.init().catch(() => {});
+        try {
+          await audioPlayerRef.current.init();
+        } catch (audioErr) {
+          setError('Audio couldn\'t start. Turn off silent mode, tap again, or use headphones.');
+          setStatus('error');
+          return;
+        }
 
         const { stream } =
           captureMode === 'screen'
             ? await startScreenShare()
             : await startCamera();
-
-        if (previewVideoRef.current) {
-          previewVideoRef.current.srcObject = stream;
-          previewVideoRef.current.muted = true;
-          previewVideoRef.current.play().catch(() => {});
-        }
+        streamRef.current = stream;
 
         const ws = new WebSocket(WS_URL);
         wsRef.current = ws;
@@ -211,6 +227,7 @@ export default function App() {
     if (previewVideoRef.current) {
       previewVideoRef.current.srcObject = null;
     }
+    streamRef.current = null;
     setMode(null);
     if (returnToIdle) setStatus('idle');
   }, [stopCapture]);
@@ -285,11 +302,13 @@ export default function App() {
         {status === 'connected' && (
           <div className="session">
             <div className="preview-wrap">
+              <div className="preview-label">What EduLens sees — adjust camera to show your paper or screen</div>
               <video
                 ref={previewVideoRef}
                 className="preview-video"
                 playsInline
                 muted
+                autoPlay
               />
               <div className="preview-overlay">
                 <span className="live-badge">Live</span>
