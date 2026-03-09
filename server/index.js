@@ -46,10 +46,19 @@ wss.on('connection', (clientWs, req) => {
 
   geminiWs.on('error', (err) => {
     console.error('Gemini WebSocket error:', err);
-    clientWs.send(JSON.stringify({ type: 'error', message: err.message }));
+    try {
+      clientWs.send(JSON.stringify({ type: 'error', message: err.message }));
+    } catch (_) {}
+    clientWs.close();
   });
 
-  geminiWs.on('close', () => {
+  geminiWs.on('close', (code, reason) => {
+    const msg = reason?.toString() || `Code ${code}`;
+    if (code !== 1000 && msg) {
+      try {
+        clientWs.send(JSON.stringify({ type: 'error', message: msg }));
+      } catch (_) {}
+    }
     clientWs.close();
   });
 

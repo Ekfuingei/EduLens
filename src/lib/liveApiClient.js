@@ -22,7 +22,7 @@ const SocraticSystemInstruction = `You are EduLens, a patient, warm tutor who he
 export function createSetupMessage() {
   return JSON.stringify({
     setup: {
-      model: 'models/gemini-2.0-flash-exp',
+      model: 'models/gemini-2.0-flash',
       generationConfig: {
         responseModalities: ['AUDIO'],
         speechConfig: {
@@ -40,7 +40,7 @@ export function createSetupMessage() {
   });
 }
 
-// Fallback model if the above isn't available - Gemini 2.0 Flash also supports Live API
+// Fallback if gemini-2.0-flash has issues
 export function createSetupMessageFallback() {
   return JSON.stringify({
     setup: {

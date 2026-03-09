@@ -36,6 +36,7 @@ export default function App() {
   const audioPlayerRef = useRef(null);
   const previewVideoRef = useRef(null);
   const userClosedRef = useRef(false);
+  const serverErrorRef = useRef(false);
 
   const {
     startCamera,
@@ -57,6 +58,7 @@ export default function App() {
   const connectAndStart = useCallback(
     async (captureMode) => {
       userClosedRef.current = false;
+      serverErrorRef.current = false;
       setStatus('connecting');
       setError(null);
       setMode(captureMode);
@@ -103,6 +105,7 @@ export default function App() {
           try {
             const msg = JSON.parse(event.data);
             if (msg.type === 'error') {
+              serverErrorRef.current = true;
               setError(msg.message || 'Connection error');
               setStatus('error');
               return;
@@ -130,9 +133,9 @@ export default function App() {
         };
 
         ws.onclose = () => {
-          if (!userClosedRef.current) {
+          if (!userClosedRef.current && !serverErrorRef.current) {
             setError(
-              'Connection closed. Ensure GEMINI_API_KEY is set in Cloud Run and try again.'
+              'Connection interrupted. The tutor may be temporarily unavailable—try again in a moment.'
             );
             setStatus('error');
           }
