@@ -45,21 +45,32 @@ wss.on('connection', (clientWs, req) => {
   });
 
   geminiWs.on('error', (err) => {
-    console.error('Gemini WebSocket error:', err);
+    console.error('[EduLens] Gemini WebSocket error:', err.message);
     try {
       clientWs.send(JSON.stringify({ type: 'error', message: err.message }));
     } catch (_) {}
-    clientWs.close();
+    try {
+      clientWs.close(1011, err.message);
+    } catch (_) {
+      clientWs.close();
+    }
   });
 
   geminiWs.on('close', (code, reason) => {
-    const msg = reason?.toString() || `Code ${code}`;
-    if (code !== 1000 && msg) {
+    const reasonStr = Buffer.isBuffer(reason) ? reason.toString() : (reason || '');
+    if (process.env.NODE_ENV !== 'test') {
+      console.error(`[EduLens] Gemini closed: code=${code} reason=${reasonStr || '(none)'}`);
+    }
+    if (code !== 1000 && reasonStr) {
       try {
-        clientWs.send(JSON.stringify({ type: 'error', message: msg }));
+        clientWs.send(JSON.stringify({ type: 'error', message: reasonStr }));
       } catch (_) {}
     }
-    clientWs.close();
+    try {
+      clientWs.close(code, reasonStr);
+    } catch (_) {
+      clientWs.close();
+    }
   });
 
   clientWs.on('message', (data) => {

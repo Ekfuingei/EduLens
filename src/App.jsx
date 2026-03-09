@@ -140,7 +140,9 @@ export default function App() {
           try {
             const msg = JSON.parse(event.data);
             if (debugAudio && !msg.setupComplete && !msg.setup_complete) {
-              console.log('[EduLens]', msg?.serverContent ? 'serverContent' : msg?.server_content ? 'server_content' : 'msg', Object.keys(msg));
+              const keys = Object.keys(msg);
+              const hasAudio = msg?.serverContent?.modelTurn?.parts?.some((p) => p.inlineData?.mimeType?.startsWith?.('audio'));
+              console.log('[EduLens]', keys, hasAudio ? 'AUDIO' : '');
             }
             if (msg.type === 'error') {
               serverErrorRef.current = true;
@@ -150,7 +152,7 @@ export default function App() {
             }
             if (msg.setupComplete || msg.setup_complete) {
               audioPlayerRef.current?.playTestSound?.();
-              ws.send(createGreetingTrigger(captureMode));
+              setTimeout(() => ws.send(createGreetingTrigger(captureMode)), 300);
               return;
             }
             // Parse audio from serverContent.modelTurn.parts (API returns camelCase)
@@ -185,11 +187,12 @@ export default function App() {
           setStatus('error');
         };
 
-        ws.onclose = () => {
+        ws.onclose = (event) => {
           if (!userClosedRef.current && !serverErrorRef.current) {
-            setError(
-              'Connection interrupted. The tutor may be temporarily unavailable—try again in a moment.'
-            );
+            const reason = event.reason || '';
+            const code = event.code;
+            const friendly = reason || (code === 1011 ? 'Session ended. The tutor has a 2–10 minute limit—try again for a new session.' : code === 1008 ? 'Connection rejected. Check your setup.' : 'Connection interrupted. Try again in a moment.');
+            setError(friendly);
             setStatus('error');
           }
           stopAll(false);

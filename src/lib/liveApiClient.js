@@ -27,10 +27,15 @@ export function createSetupMessage() {
   return JSON.stringify({
     setup: {
       model: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
-      generation_config: {
-        response_modalities: ['AUDIO'],
+      generationConfig: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Aoede' },
+          },
+        },
       },
-      system_instruction: {
+      systemInstruction: {
         parts: [{ text: SocraticSystemInstruction }],
       },
     },
@@ -42,10 +47,15 @@ export function createSetupMessageFallback() {
   return JSON.stringify({
     setup: {
       model: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
-      generation_config: {
-        response_modalities: ['AUDIO'],
+      generationConfig: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Puck' },
+          },
+        },
       },
-      system_instruction: {
+      systemInstruction: {
         parts: [{ text: SocraticSystemInstruction }],
       },
     },
@@ -54,7 +64,7 @@ export function createSetupMessageFallback() {
 
 export function createRealtimeInput(payload) {
   return JSON.stringify({
-    realtime_input: payload,
+    realtimeInput: payload,
   });
 }
 
@@ -64,23 +74,23 @@ export function createGreetingTrigger(mode = 'camera') {
     ? 'Begin the session by greeting the student. Thank them for sharing their screen.'
     : 'Begin the session by greeting the student. Thank them for showing their homework.';
   return JSON.stringify({
-    client_content: {
+    clientContent: {
       turns: [
         {
           role: 'user',
           parts: [{ text: prompt }],
         },
       ],
-      turn_complete: true,
+      turnComplete: true,
     },
   });
 }
 
 export function createAudioInput(base64Pcm) {
   return createRealtimeInput({
-    media_chunks: [
+    mediaChunks: [
       {
-        mime_type: 'audio/pcm;rate=16000',
+        mimeType: 'audio/pcm;rate=16000',
         data: base64Pcm,
       },
     ],
@@ -89,9 +99,9 @@ export function createAudioInput(base64Pcm) {
 
 export function createImageInput(base64Jpeg) {
   return createRealtimeInput({
-    media_chunks: [
+    mediaChunks: [
       {
-        mime_type: 'image/jpeg',
+        mimeType: 'image/jpeg',
         data: base64Jpeg,
       },
     ],
