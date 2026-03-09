@@ -17,11 +17,16 @@ if (typeof window !== 'undefined') {
   window.__EDULENS_WS_URL__ = WS_URL;
 }
 
-const SESSION_TIPS = [
-  'Say "I need help with this problem" to get started.',
-  'Interrupt anytime — try "wait, go back" or "can you explain that again?"',
-  'Point your camera at your work so EduLens can see what you\'re doing.',
-  'Ask questions! EduLens will guide you, not give away answers.',
+const SESSION_TIPS_CAMERA = [
+  'EduLens will guide you by voice — just talk naturally.',
+  'Say "wait" or "go back" anytime to interrupt.',
+  'Keep your work in view so EduLens can see it.',
+];
+
+const SESSION_TIPS_SCREEN = [
+  'EduLens will guide you by voice — just talk naturally.',
+  'Say "wait" or "go back" anytime to interrupt.',
+  'EduLens can see your screen.',
 ];
 
 export default function App() {
@@ -46,14 +51,15 @@ export default function App() {
     stopCapture,
   } = useMediaCapture();
 
-  // Rotate tips every 6 seconds when connected
+  // Rotate tips every 6 seconds when connected (mode-aware)
+  const sessionTips = mode === 'screen' ? SESSION_TIPS_SCREEN : SESSION_TIPS_CAMERA;
   useEffect(() => {
     if (status !== 'connected') return;
     const id = setInterval(() => {
-      setTipIndex((i) => (i + 1) % SESSION_TIPS.length);
+      setTipIndex((i) => (i + 1) % sessionTips.length);
     }, 6000);
     return () => clearInterval(id);
-  }, [status]);
+  }, [status, mode, sessionTips.length]);
 
   const connectAndStart = useCallback(
     async (captureMode) => {
@@ -111,7 +117,7 @@ export default function App() {
               return;
             }
             if (msg.setupComplete || msg.setup_complete) {
-              ws.send(createGreetingTrigger());
+              ws.send(createGreetingTrigger(mode));
               return;
             }
             const turn = msg.serverContent?.modelTurn ?? msg.server_content?.model_turn;
@@ -248,7 +254,7 @@ export default function App() {
               </div>
             </div>
             <div className="session-tips">
-              <p>{SESSION_TIPS[tipIndex]}</p>
+              <p>{sessionTips[tipIndex]}</p>
             </div>
             <button type="button" className="btn-stop" onClick={stopAll}>
               End session
