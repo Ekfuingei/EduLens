@@ -72,7 +72,9 @@ EduLens/
 
 ## Deploy to Google Cloud Run
 
-### Option 1: Manual deploy
+See **[docs/DEPLOY_GOOGLE_CLOUD.md](docs/DEPLOY_GOOGLE_CLOUD.md)** for full step-by-step instructions.
+
+### Option 1: Quick deploy from source
 ```bash
 npm run build
 gcloud run deploy edulens --source .
