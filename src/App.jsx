@@ -115,11 +115,13 @@ export default function App() {
           setStatus('connected');
 
           if (!isMuted) {
-            startAudioCapture(stream, (base64) => {
-              if (ws.readyState === 1) {
-                ws.send(createAudioInput(base64));
-              }
-            });
+            Promise.resolve(
+              startAudioCapture(stream, (base64) => {
+                if (ws.readyState === 1) {
+                  ws.send(createAudioInput(base64));
+                }
+              })
+            ).catch(() => {});
           }
 
           // Delay first frame so phone camera has time to produce video (readyState)

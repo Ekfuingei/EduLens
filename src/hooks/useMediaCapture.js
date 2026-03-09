@@ -93,7 +93,7 @@ export function useMediaCapture() {
   }, []);
 
   const startAudioCapture = React.useCallback(
-    (stream, onPcmChunk) => {
+    async (stream, onPcmChunk) => {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)({
         sampleRate: TARGET_AUDIO_SAMPLE_RATE,
       });
@@ -102,26 +102,58 @@ export function useMediaCapture() {
       const source = audioContext.createMediaStreamSource(stream);
       sourceRef.current = source;
 
-      const bufferSize = 4096;
-      const processor = audioContext.createScriptProcessor(bufferSize, 1, 1);
-      processorRef.current = processor;
+      try {
+        const workletCode = `
+          class PcmProcessor extends AudioWorkletProcessor {
+            process(inputs) {
+              const input = inputs[0]?.[0];
+              if (input) {
+                const pcm16 = new Int16Array(input.length);
+                for (let i = 0; i < input.length; i++) {
+                  const s = Math.max(-1, Math.min(1, input[i]));
+                  pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+                }
+                this.port.postMessage(pcm16.buffer, [pcm16.buffer]);
+              }
+              return true;
+            }
+          }
+          registerProcessor('pcm-processor', PcmProcessor);
+        `;
+        const blob = new Blob([workletCode], { type: 'application/javascript' });
+        await audioContext.audioWorklet.addModule(URL.createObjectURL(blob));
 
-      processor.onaudioprocess = (e) => {
-        const input = e.inputBuffer.getChannelData(0);
-        const pcm16 = new Int16Array(input.length);
-        for (let i = 0; i < input.length; i++) {
-          const s = Math.max(-1, Math.min(1, input[i]));
-          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-        }
-        const base64 = btoa(String.fromCharCode.apply(null, new Uint8Array(pcm16.buffer)));
-        onPcmChunk(base64);
-      };
+        const processor = new AudioWorkletNode(audioContext, 'pcm-processor', { numberOfInputs: 1, numberOfOutputs: 1 });
+        processorRef.current = processor;
+        processor.port.onmessage = (e) => {
+          const base64 = btoa(String.fromCharCode.apply(null, new Uint8Array(e.data)));
+          onPcmChunk(base64);
+        };
 
-      const silence = audioContext.createGain();
-      silence.gain.value = 0;
-      source.connect(processor);
-      processor.connect(silence);
-      silence.connect(audioContext.destination);
+        const silence = audioContext.createGain();
+        silence.gain.value = 0;
+        source.connect(processor);
+        processor.connect(silence);
+        silence.connect(audioContext.destination);
+      } catch (err) {
+        const bufferSize = 4096;
+        const processor = audioContext.createScriptProcessor(bufferSize, 1, 1);
+        processorRef.current = processor;
+        processor.onaudioprocess = (e) => {
+          const input = e.inputBuffer.getChannelData(0);
+          const pcm16 = new Int16Array(input.length);
+          for (let i = 0; i < input.length; i++) {
+            const s = Math.max(-1, Math.min(1, input[i]));
+            pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+          }
+          onPcmChunk(btoa(String.fromCharCode.apply(null, new Uint8Array(pcm16.buffer))));
+        };
+        const silence = audioContext.createGain();
+        silence.gain.value = 0;
+        source.connect(processor);
+        processor.connect(silence);
+        silence.connect(audioContext.destination);
+      }
     },
     []
   );
