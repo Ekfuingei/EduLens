@@ -18,7 +18,7 @@ describe('liveApiClient', () => {
     it('contains setup with model and generationConfig', () => {
       const msg = JSON.parse(createSetupMessage());
       expect(msg).toHaveProperty('setup');
-      expect(msg.setup).toHaveProperty('model', 'models/gemini-2.0-flash');
+      expect(msg.setup).toHaveProperty('model', 'models/gemini-2.0-flash-exp');
       expect(msg.setup).toHaveProperty('generationConfig');
       expect(msg.setup.generationConfig.responseModalities).toContain('AUDIO');
     });

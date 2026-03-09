@@ -22,7 +22,7 @@ const SocraticSystemInstruction = `You are EduLens, a patient, warm tutor who he
 export function createSetupMessage() {
   return JSON.stringify({
     setup: {
-      model: 'models/gemini-2.0-flash',
+      model: 'models/gemini-2.0-flash-exp',
       generationConfig: {
         responseModalities: ['AUDIO'],
         speechConfig: {
