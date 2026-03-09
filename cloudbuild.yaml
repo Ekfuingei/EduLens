@@ -32,8 +32,8 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
-      # Set GEMINI_API_KEY in Cloud Run console or via:
-      # --set-env-vars GEMINI_API_KEY=$(gcloud secrets versions access latest --secret=gemini-api-key)
+      - '--set-secrets'
+      - 'GEMINI_API_KEY=gemini-api-key:latest'
 
 images:
   - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$SHORT_SHA'

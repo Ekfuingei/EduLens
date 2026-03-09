@@ -90,19 +90,15 @@ gcloud run deploy edulens \
 
 ### Option B: Deploy with Cloud Build (CI/CD)
 
+**First-time setup:** Create the secret and grant access (Step 3 above). Cloud Build uses `gemini-api-key` automatically.
+
 ```bash
 cd /Users/macbookpro2017/Desktop/EduLens
 
 gcloud builds submit --config=cloudbuild.yaml
 ```
 
-Then set the secret in Cloud Run console:
-
-1. Go to [Cloud Run](https://console.cloud.google.com/run)
-2. Click your `edulens` service
-3. Edit & deploy new revision
-4. Variables & secrets → Add variable
-5. Name: `GEMINI_API_KEY`, Value: reference `gemini-api-key` secret
+Cloud Build now passes `GEMINI_API_KEY` from Secret Manager on every deploy. No manual step needed.
 
 ---
 
