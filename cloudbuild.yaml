@@ -23,6 +23,18 @@ steps:
     entrypoint: gcloud
     args:
       - 'run'
+      - 'services'
+      - 'add-iam-policy-binding'
+      - '${_SERVICE_NAME}'
+      - '--region=${_REGION}'
+      - '--member=allUsers'
+      - '--role=roles/run.invoker'
+    id: 'allow-public'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
       - 'deploy'
       - '${_SERVICE_NAME}'
       - '--image'
