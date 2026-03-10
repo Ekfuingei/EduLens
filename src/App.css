@@ -408,6 +408,13 @@
   transform: translateY(0);
 }
 
+.sent-feedback {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: var(--teal);
+  opacity: 0.9;
+}
+
 @keyframes sessionEnter {
   from {
     opacity: 0;

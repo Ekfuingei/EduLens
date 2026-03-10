@@ -36,6 +36,7 @@ export default function App() {
   const [capturedImage, setCapturedImage] = useState(null);
   const [tipIndex, setTipIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
+  const [sentFeedback, setSentFeedback] = useState(null);
 
   const wsRef = useRef(null);
   const audioPlayerRef = useRef(null);
@@ -254,8 +255,24 @@ export default function App() {
   }, [typedText, connectAndExplain]);
 
   const sendToTutor = useCallback((text) => {
-    if (wsRef.current?.readyState === 1) {
-      wsRef.current.send(createTextMessage(text));
+    const ws = wsRef.current;
+    const debug = typeof window !== 'undefined' && /[?&]debug=1/.test(window.location.search);
+    if (!ws) {
+      setError('Not connected. End session and try again.');
+      return;
+    }
+    if (ws.readyState !== 1) {
+      setError('Connection lost. End session and try again.');
+      return;
+    }
+    try {
+      ws.send(createTextMessage(text));
+      if (debug) console.log('[EduLens] Sent:', text);
+      setSentFeedback(text);
+      setTimeout(() => setSentFeedback(null), 2500);
+    } catch (err) {
+      setError('Failed to send. Try again.');
+      if (debug) console.warn('[EduLens] Send failed:', err);
     }
   }, []);
 
@@ -419,6 +436,9 @@ export default function App() {
                 I'm stuck
               </button>
             </div>
+            {sentFeedback && (
+              <p className="sent-feedback">Sent &quot;{sentFeedback}&quot; — waiting for EduLens…</p>
+            )}
             <button type="button" className="btn-stop" onClick={stopAll}>
               End session
             </button>
