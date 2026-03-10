@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 
@@ -38,12 +38,12 @@ describe('App', () => {
 
   it('renders tagline', () => {
     render(<App />);
-    expect(screen.getByText(/tutor that sees your homework/i)).toBeInTheDocument();
+    expect(screen.getByText(/snap.*share.*type|step-by-step/i)).toBeInTheDocument();
   });
 
-  it('renders Camera on paper option', () => {
+  it('renders Snap a photo option', () => {
     render(<App />);
-    expect(screen.getByRole('button', { name: /camera on paper/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /snap a photo/i })).toBeInTheDocument();
   });
 
   it('renders Share screen option', () => {
@@ -56,31 +56,12 @@ describe('App', () => {
     expect(screen.getByText(/powered by gemini live api/i)).toBeInTheDocument();
   });
 
-  it('transitions state when Camera on paper is clicked', async () => {
-    const user = userEvent.setup();
-    vi.stubGlobal('WebSocket', vi.fn(function () {
-      const ws = {
-        readyState: 1,
-        send: vi.fn(),
-        close: vi.fn(),
-        addEventListener: vi.fn(),
-        _onopen: null,
-      };
-      Object.defineProperty(ws, 'onopen', {
-        set: (fn) => {
-          ws._onopen = fn;
-          queueMicrotask(() => fn?.());
-        },
-        configurable: true,
-      });
-      return ws;
-    }));
-
+  it('transitions to type view when Type it is clicked', async () => {
     render(<App />);
-    await user.click(screen.getByRole('button', { name: /camera on paper/i }));
-
+    const btn = screen.getByTestId('option-type');
+    btn.click();
     await waitFor(() => {
-      expect(screen.getByText(/connecting|live|edulens is watching|connecting to your tutor/i)).toBeInTheDocument();
-    }, { timeout: 2000 });
+      expect(screen.getByTestId('type-wrap')).toBeInTheDocument();
+    });
   });
 });

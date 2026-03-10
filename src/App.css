@@ -192,6 +192,9 @@
 .option-screen .option-icon {
   background: linear-gradient(135deg, rgba(61, 90, 128, 0.12), rgba(152, 193, 217, 0.2));
 }
+.option-type .option-icon {
+  background: linear-gradient(135deg, rgba(42, 157, 143, 0.12), rgba(152, 193, 217, 0.2));
+}
 
 .option-card:hover .option-icon {
   transform: scale(1.08);
@@ -261,7 +264,109 @@
   color: var(--ink-soft);
 }
 
+/* ── Type input ────────────────────────────────────────────── */
+
+.type-wrap {
+  width: 100%;
+  animation: optionsEnter 0.4s ease-out both;
+}
+
+.type-input {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid var(--ink-soft);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 120px;
+}
+
+.type-input:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+
+.type-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.btn-primary {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  background: var(--teal);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--teal-dark, #2a7a72);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  padding: 1rem 1.5rem;
+  background: white;
+  color: var(--ink-muted);
+  border: 2px solid var(--ink-soft);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+/* ── Capture (Snap/Screen) ─────────────────────────────────── */
+
+.capture-wrap {
+  width: 100%;
+  animation: optionsEnter 0.4s ease-out both;
+}
+
+.capture-hint {
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+}
+
+.capture-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.capture-actions .btn-primary,
+.capture-actions .btn-secondary {
+  flex: 1;
+}
+
 /* ── Session (Connected) ───────────────────────────────────── */
+
+.session-hero {
+  padding: 1.25rem;
+  background: linear-gradient(135deg, rgba(42, 157, 143, 0.08), rgba(61, 90, 128, 0.06));
+  border-radius: var(--radius-lg);
+  border-left: 4px solid var(--teal);
+}
+
+.session-hero p {
+  margin: 0.4rem 0 0 0;
+  font-size: 0.95rem;
+  color: var(--ink-muted);
+}
 
 .session {
   width: 100%;

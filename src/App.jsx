@@ -4,34 +4,25 @@ import {
   createSetupMessage,
   createAudioInput,
   createImageInput,
-  createGreetingTrigger,
+  createProblemTrigger,
 } from './lib/liveApiClient';
 import { createAudioPlayer } from './lib/audioPlayer';
 
-// When frontend is on Vercel, point to Cloud Run backend. Otherwise same-origin.
 const WS_URL =
   import.meta.env.VITE_WS_URL ||
   `${window.location.origin.replace(/^http/, 'ws')}/ws`;
-// Debug: open DevTools Console, click Camera/Screen — you'll see which URL is used
 if (typeof window !== 'undefined') {
   window.__EDULENS_WS_URL__ = WS_URL;
 }
 
-const SESSION_TIPS_CAMERA = [
-  'EduLens will guide you by voice — just talk naturally.',
-  'Say "wait" or "go back" anytime to interrupt.',
-  'Keep your work in view so EduLens can see it.',
+const SESSION_TIPS = [
+  'Talk naturally—ask questions, say you\'re confused, or request examples.',
+  'Say "next step" when you\'re ready for the next one.',
+  'Say "repeat" to hear the last step again.',
+  'Say "I\'m stuck" if you need more help.',
   'Use headphones for the best voice experience.',
 ];
 
-const SESSION_TIPS_SCREEN = [
-  'EduLens will guide you by voice — just talk naturally.',
-  'Say "wait" or "go back" anytime to interrupt.',
-  'EduLens can see your screen.',
-  'Use headphones for the best voice experience.',
-];
-
-// Screen share: use getDisplayMedia when available
 const canShareScreen =
   typeof navigator !== 'undefined' &&
   navigator.mediaDevices?.getDisplayMedia instanceof Function;
@@ -40,12 +31,12 @@ export default function App() {
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
   const [mode, setMode] = useState(null);
-  const [isMuted, setIsMuted] = useState(false);
+  const [typedText, setTypedText] = useState('');
+  const [capturedImage, setCapturedImage] = useState(null);
   const [tipIndex, setTipIndex] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
 
   const wsRef = useRef(null);
-  const videoFrameIntervalRef = useRef(null);
-  const videoFrameTimeoutRef = useRef(null);
   const audioPlayerRef = useRef(null);
   const previewVideoRef = useRef(null);
   const streamRef = useRef(null);
@@ -60,52 +51,41 @@ export default function App() {
     stopCapture,
   } = useMediaCapture();
 
-  // Attach stream to preview when connected (video mounts only then)
   useEffect(() => {
-    if (status !== 'connected' || !previewVideoRef.current || !streamRef.current) return;
+    if (status !== 'capturing' || !previewVideoRef.current || !streamRef.current) return;
     const video = previewVideoRef.current;
     video.srcObject = streamRef.current;
     video.muted = true;
     video.play().catch(() => {});
-    return () => {
-      video.srcObject = null;
-    };
+    return () => { video.srcObject = null; };
   }, [status]);
 
-  // Rotate tips every 6 seconds when connected (mode-aware)
-  const sessionTips = mode === 'screen' ? SESSION_TIPS_SCREEN : SESSION_TIPS_CAMERA;
   useEffect(() => {
     if (status !== 'connected') return;
     const id = setInterval(() => {
-      setTipIndex((i) => (i + 1) % sessionTips.length);
+      setTipIndex((i) => (i + 1) % SESSION_TIPS.length);
     }, 6000);
     return () => clearInterval(id);
-  }, [status, mode, sessionTips.length]);
+  }, [status]);
 
-  const connectAndStart = useCallback(
-    async (captureMode) => {
+  const connectAndExplain = useCallback(
+    async (submitMode, imageBase64, text) => {
       userClosedRef.current = false;
       serverErrorRef.current = false;
       setStatus('connecting');
       setError(null);
-      setMode(captureMode);
 
       try {
-        // Unlock AudioContext on user gesture (required for mobile/Safari)
         audioPlayerRef.current = createAudioPlayer();
         try {
           await audioPlayerRef.current.init();
         } catch (audioErr) {
           setError('Audio couldn\'t start. Turn off silent mode, tap again, or use headphones.');
-          setStatus('error');
+          setStatus('idle');
+          setMode(null);
+          setCapturedImage(null);
           return;
         }
-
-        const { stream } =
-          captureMode === 'screen'
-            ? await startScreenShare()
-            : await startCamera();
-        streamRef.current = stream;
 
         const ws = new WebSocket(WS_URL);
         wsRef.current = ws;
@@ -113,26 +93,6 @@ export default function App() {
         ws.onopen = () => {
           ws.send(createSetupMessage());
           setStatus('connected');
-
-          if (!isMuted) {
-            Promise.resolve(
-              startAudioCapture(stream, (base64) => {
-                if (ws.readyState === 1) {
-                  ws.send(createAudioInput(base64));
-                }
-              })
-            ).catch(() => {});
-          }
-
-          // Delay first frame so phone camera has time to produce video (readyState)
-          videoFrameTimeoutRef.current = setTimeout(() => {
-            videoFrameIntervalRef.current = setInterval(() => {
-              const frame = captureVideoFrame();
-              if (frame && ws.readyState === 1) {
-                ws.send(createImageInput(frame));
-              }
-            }, 1000);
-          }, 1500);
         };
 
         const debugAudio = typeof window !== 'undefined' && /[?&]debug=1/.test(window.location.search);
@@ -140,9 +100,8 @@ export default function App() {
           try {
             const msg = JSON.parse(event.data);
             if (debugAudio && !msg.setupComplete && !msg.setup_complete) {
-              const keys = Object.keys(msg);
               const hasAudio = msg?.serverContent?.modelTurn?.parts?.some((p) => p.inlineData?.mimeType?.startsWith?.('audio'));
-              console.log('[EduLens]', keys, hasAudio ? 'AUDIO' : '');
+              console.log('[EduLens]', Object.keys(msg), hasAudio ? 'AUDIO' : '');
             }
             if (msg.type === 'error') {
               serverErrorRef.current = true;
@@ -152,32 +111,41 @@ export default function App() {
             }
             if (msg.setupComplete || msg.setup_complete) {
               audioPlayerRef.current?.playTestSound?.();
-              setTimeout(() => ws.send(createGreetingTrigger(captureMode)), 300);
+              setTimeout(() => {
+                ws.send(createProblemTrigger(submitMode, imageBase64, text));
+              }, 300);
+              if (!isMuted) {
+                navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } })
+                  .then((micStream) => {
+                    streamRef.current = micStream;
+                    return startAudioCapture(micStream, (base64) => {
+                      if (ws.readyState === 1) ws.send(createAudioInput(base64));
+                    });
+                  })
+                  .catch(() => {});
+              }
               return;
             }
-            // Parse audio from serverContent.modelTurn.parts (API returns camelCase)
             const audioChunks = [];
             const parts = msg.serverContent?.modelTurn?.parts || msg.server_content?.model_turn?.parts || [];
             for (const part of parts) {
               const inline = part.inlineData ?? part.inline_data;
               const data = inline?.data;
               const mime = (inline?.mimeType ?? inline?.mime_type ?? '').toLowerCase();
-              if (data && mime.startsWith('audio/pcm')) {
+              if (data && (mime.startsWith('audio/pcm') || !mime)) {
                 audioChunks.push(data);
               }
             }
-            const realtime = msg.realtimeOutput ?? msg.realtime_output;
-            const rtParts = realtime?.mediaChunks ?? realtime?.media_chunks ?? [];
+            const rtParts = (msg.realtimeOutput ?? msg.realtime_output)?.mediaChunks ?? (msg.realtimeOutput ?? msg.realtime_output)?.media_chunks ?? [];
             for (const p of rtParts) {
               const mime = (p.mimeType ?? p.mime_type ?? '').toLowerCase();
-              if (mime.startsWith('audio/pcm') && p.data) {
-                audioChunks.push(p.data);
-              }
+              if (mime.startsWith('audio/pcm') && p.data) audioChunks.push(p.data);
+            }
+            if (debugAudio && audioChunks.length > 0) {
+              console.log('[EduLens] Playing', audioChunks.length, 'audio chunk(s)');
             }
             for (const data of audioChunks) {
-              audioPlayerRef.current?.playPcmChunk(data).catch((e) =>
-                console.warn('EduLens audio play failed:', e)
-              );
+              audioPlayerRef.current?.playPcmChunk(data).catch((e) => console.warn('Audio play failed:', e));
             }
           } catch (_) {}
         };
@@ -191,54 +159,74 @@ export default function App() {
           if (!userClosedRef.current && !serverErrorRef.current) {
             const reason = event.reason || '';
             const code = event.code;
-            const friendly = reason || (code === 1011 ? 'Session ended. The tutor has a 2–10 minute limit—try again for a new session.' : code === 1008 ? 'Connection rejected. Check your setup.' : 'Connection interrupted. Try again in a moment.');
+            const friendly = reason || (code === 1011 ? 'Session ended. Try again for a new session.' : code === 1008 ? 'Connection rejected. Check your setup.' : 'Connection interrupted. Try again.');
             setError(friendly);
             setStatus('error');
           }
           stopAll(false);
         };
       } catch (err) {
-        const msg = err.message || '';
-        if (msg.includes('getDisplayMedia') || msg.includes('not a function')) {
-          setError('Screen share isn\'t supported on phones. Use "Camera on paper" instead—it works great for notebooks and worksheets!');
-        } else {
-          setError(msg || 'Failed to start. Allow camera/microphone access.');
-        }
+        setError(err.message || 'Failed to connect.');
         setStatus('error');
-        stopCapture();
       }
     },
-    [
-      startCamera,
-      startScreenShare,
-      startAudioCapture,
-      captureVideoFrame,
-      stopCapture,
-      isMuted,
-    ]
+    [startAudioCapture, stopCapture, isMuted]
   );
+
+  const startCapture = useCallback(async (captureMode) => {
+    setError(null);
+    setMode(captureMode);
+    setCapturedImage(null);
+    try {
+      const { stream } = captureMode === 'screen' ? await startScreenShare() : await startCamera();
+      streamRef.current = stream;
+      setStatus('capturing');
+    } catch (err) {
+      const msg = err.message || '';
+      if (msg.includes('getDisplayMedia') || msg.includes('not a function')) {
+        setError('Screen share isn\'t supported here. Use Snap or Type instead.');
+      } else {
+        setError(msg || 'Allow camera access.');
+      }
+    }
+  }, [startCamera, startScreenShare]);
+
+  const captureAndSubmit = useCallback(() => {
+    const frame = captureVideoFrame();
+    if (!frame) {
+      setError('Couldn\'t capture. Try again.');
+      return;
+    }
+    stopCapture();
+    streamRef.current = null;
+    setCapturedImage(frame);
+    connectAndExplain(mode, frame, null);
+  }, [mode, captureVideoFrame, stopCapture, connectAndExplain]);
+
+  const submitTyped = useCallback(() => {
+    const text = typedText.trim();
+    if (!text) {
+      setError('Please type your question.');
+      return;
+    }
+    setStatus('connecting');
+    connectAndExplain('type', null, text);
+    setTypedText('');
+    setMode(null);
+  }, [typedText, connectAndExplain]);
 
   const stopAll = useCallback((returnToIdle = true) => {
     userClosedRef.current = returnToIdle;
-    if (videoFrameTimeoutRef.current) {
-      clearTimeout(videoFrameTimeoutRef.current);
-      videoFrameTimeoutRef.current = null;
-    }
-    if (videoFrameIntervalRef.current) {
-      clearInterval(videoFrameIntervalRef.current);
-      videoFrameIntervalRef.current = null;
-    }
     audioPlayerRef.current?.stop();
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
     stopCapture();
-    if (previewVideoRef.current) {
-      previewVideoRef.current.srcObject = null;
-    }
+    if (previewVideoRef.current) previewVideoRef.current.srcObject = null;
     streamRef.current = null;
     setMode(null);
+    setCapturedImage(null);
     if (returnToIdle) setStatus('idle');
   }, [stopCapture]);
 
@@ -251,48 +239,104 @@ export default function App() {
           <img src="/logo.png" alt="EduLens" className="header-logo" />
           <h1><span className="brand-edu">Edu</span><span className="brand-lens">Lens</span></h1>
         </div>
-        <p className="tagline">A tutor that sees your homework and never loses patience.</p>
+        <p className="tagline">Snap, share, or type your problem — EduLens explains step-by-step.</p>
       </header>
 
       <main className="main">
         {status === 'idle' && (
           <div className="start-options">
             <p className="hint">
-              Point your camera at your paper, or share your screen for digital work.
+              How would you like to show your problem?
             </p>
             <div className="option-cards">
               <button
                 type="button"
                 className="option-card option-camera"
-                onClick={() => connectAndStart('camera')}
+                onClick={() => startCapture('snap')}
               >
-                <span className="option-icon">📱</span>
+                <span className="option-icon">📸</span>
                 <div className="option-content">
-                  <p className="option-title">Camera on paper</p>
-                  <p className="option-desc">Best for handwriting, notes, worksheets</p>
+                  <p className="option-title">Snap a photo</p>
+                  <p className="option-desc">Handwriting, worksheets, notes</p>
                 </div>
               </button>
               {canShareScreen ? (
                 <button
                   type="button"
                   className="option-card option-screen"
-                  onClick={() => connectAndStart('screen')}
+                  onClick={() => startCapture('screen')}
                 >
                   <span className="option-icon">💻</span>
                   <div className="option-content">
                     <p className="option-title">Share screen</p>
-                    <p className="option-desc">For coding, docs, research (laptop/desktop)</p>
+                    <p className="option-desc">Coding, docs, work in another app</p>
                   </div>
                 </button>
               ) : (
-                <div className="option-card option-screen option-disabled" title="Screen share is available on laptop/desktop">
+                <div className="option-card option-screen option-disabled" title="Screen share on laptop/desktop">
                   <span className="option-icon">💻</span>
                   <div className="option-content">
                     <p className="option-title">Share screen</p>
-                    <p className="option-desc">Use a laptop or desktop—not available on phones</p>
+                    <p className="option-desc">Use laptop or desktop</p>
                   </div>
                 </div>
               )}
+              <button
+                type="button"
+                className="option-card option-type"
+                data-testid="option-type"
+                onClick={() => { setMode('type'); setStatus('typing'); setError(null); }}
+              >
+                <span className="option-icon">✏️</span>
+                <div className="option-content">
+                  <p className="option-title">Type it</p>
+                  <p className="option-desc">Paste or type your question</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {status === 'typing' && (
+          <div className="type-wrap" data-testid="type-wrap">
+            <textarea
+              className="type-input"
+              placeholder="Type or paste your question here..."
+              value={typedText}
+              onChange={(e) => setTypedText(e.target.value)}
+              rows={5}
+              autoFocus
+            />
+            <div className="type-actions">
+              <button type="button" className="btn-secondary" onClick={() => { setStatus('idle'); setMode(null); setTypedText(''); }}>
+                Back
+              </button>
+              <button type="button" className="btn-primary" onClick={submitTyped} disabled={!typedText.trim()}>
+                Get help
+              </button>
+            </div>
+          </div>
+        )}
+
+        {status === 'capturing' && (
+          <div className="capture-wrap">
+            <div className="preview-wrap">
+              <video
+                ref={previewVideoRef}
+                className="preview-video"
+                playsInline
+                muted
+                autoPlay
+              />
+            </div>
+            <p className="capture-hint">Point at your work, then tap Use this</p>
+            <div className="capture-actions">
+              <button type="button" className="btn-secondary" onClick={() => { stopCapture(); streamRef.current = null; setStatus('idle'); setMode(null); }}>
+                Cancel
+              </button>
+              <button type="button" className="btn-primary" onClick={captureAndSubmit}>
+                Use this
+              </button>
             </div>
           </div>
         )}
@@ -305,28 +349,17 @@ export default function App() {
               ))}
             </div>
             <p className="connecting-text">Connecting to your tutor…</p>
-            <p className="connecting-hint">This usually takes a few seconds</p>
           </div>
         )}
 
         {status === 'connected' && (
           <div className="session">
-            <div className="preview-wrap">
-              <div className="preview-label">What EduLens sees — adjust camera to show your paper or screen</div>
-              <video
-                ref={previewVideoRef}
-                className="preview-video"
-                playsInline
-                muted
-                autoPlay
-              />
-              <div className="preview-overlay">
-                <span className="live-badge">Live</span>
-                <p>EduLens is watching. Just talk naturally.</p>
-              </div>
+            <div className="session-hero">
+              <span className="live-badge">Live</span>
+              <p>EduLens is here. Follow along, ask anything, or say "next step" when ready.</p>
             </div>
             <div className="session-tips">
-              <p>{sessionTips[tipIndex]}</p>
+              <p>{SESSION_TIPS[tipIndex]}</p>
             </div>
             <button type="button" className="btn-stop" onClick={stopAll}>
               End session
@@ -341,10 +374,7 @@ export default function App() {
             <button
               type="button"
               className="btn-retry"
-              onClick={() => {
-                setError(null);
-                setStatus('idle');
-              }}
+              onClick={() => { setError(null); setStatus('idle'); setMode(null); setCapturedImage(null); }}
             >
               Try again
             </button>
@@ -354,7 +384,7 @@ export default function App() {
 
       <footer className="footer">
         <img src="/logo.png" alt="" className="footer-logo" aria-hidden />
-        <p>Powered by Gemini Live API · Interrupt anytime — say &quot;wait, go back&quot;</p>
+        <p>Powered by Gemini Live API · Talk naturally or say &quot;next step&quot;, &quot;repeat&quot;, &quot;I&apos;m stuck&quot;</p>
       </footer>
     </div>
   );

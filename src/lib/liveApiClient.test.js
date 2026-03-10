@@ -4,7 +4,7 @@ import {
   createSetupMessageFallback,
   createAudioInput,
   createImageInput,
-  createGreetingTrigger,
+  createProblemTrigger,
   createRealtimeInput,
 } from './liveApiClient';
 
@@ -57,18 +57,19 @@ describe('liveApiClient', () => {
     });
   });
 
-  describe('createGreetingTrigger', () => {
+  describe('createProblemTrigger', () => {
     it('returns clientContent with user turn and turnComplete', () => {
-      const msg = JSON.parse(createGreetingTrigger());
+      const msg = JSON.parse(createProblemTrigger('type', null, 'Solve 2x+5=15'));
       expect(msg).toHaveProperty('clientContent');
       expect(msg.clientContent.turns).toHaveLength(1);
       expect(msg.clientContent.turns[0].role).toBe('user');
       expect(msg.clientContent.turnComplete).toBe(true);
     });
 
-    it('includes greeting prompt', () => {
-      const msg = JSON.parse(createGreetingTrigger());
-      expect(msg.clientContent.turns[0].parts[0].text).toContain('Begin the session');
+    it('includes image when provided', () => {
+      const msg = JSON.parse(createProblemTrigger('snap', 'base64img', null));
+      expect(msg.clientContent.turns[0].parts[0].inlineData.mimeType).toBe('image/jpeg');
+      expect(msg.clientContent.turns[0].parts[1].text).toContain('step');
     });
   });
 
