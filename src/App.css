@@ -368,6 +368,12 @@
   color: var(--ink-muted);
 }
 
+.debug-hint {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
 .session {
   width: 100%;
   max-width: 560px;

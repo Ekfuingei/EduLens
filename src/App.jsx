@@ -20,7 +20,7 @@ const SESSION_TIPS = [
   'Say "next step" when you\'re ready for the next one.',
   'Say "repeat" to hear the last step again.',
   'Say "I\'m stuck" if you need more help.',
-  'Use headphones for the best voice experience.',
+  'Use your device speakers. Headphones optional if you prefer.',
 ];
 
 const canShareScreen =
@@ -75,12 +75,14 @@ export default function App() {
       setStatus('connecting');
       setError(null);
 
+      const debugAudio = typeof window !== 'undefined' && /[?&]debug=1/.test(window.location.search);
+
       try {
         audioPlayerRef.current = createAudioPlayer();
         try {
           await audioPlayerRef.current.init();
         } catch (audioErr) {
-          setError('Audio couldn\'t start. Turn off silent mode, tap again, or use headphones.');
+          setError('Audio couldn\'t start. Turn off silent mode and tap again.');
           setStatus('idle');
           setMode(null);
           setCapturedImage(null);
@@ -91,17 +93,28 @@ export default function App() {
         wsRef.current = ws;
 
         ws.onopen = () => {
+          if (debugAudio) console.log('[EduLens] WebSocket open, sending setup');
           ws.send(createSetupMessage());
           setStatus('connected');
         };
 
-        const debugAudio = typeof window !== 'undefined' && /[?&]debug=1/.test(window.location.search);
         ws.onmessage = (event) => {
           try {
             const msg = JSON.parse(event.data);
-            if (debugAudio && !msg.setupComplete && !msg.setup_complete) {
-              const hasAudio = msg?.serverContent?.modelTurn?.parts?.some((p) => p.inlineData?.mimeType?.startsWith?.('audio'));
-              console.log('[EduLens]', Object.keys(msg), hasAudio ? 'AUDIO' : '');
+            if (debugAudio) {
+              const keys = Object.keys(msg);
+              if (msg.setupComplete || msg.setup_complete) {
+                console.log('[EduLens] setupComplete received');
+              } else if (msg.serverContent || msg.server_content) {
+                const sc = msg.serverContent || msg.server_content;
+                const mt = sc.modelTurn || sc.model_turn;
+                const parts = mt?.parts || [];
+                const hasAudio = parts.some((p) => (p.inlineData?.data || p.inline_data?.data) && ((p.inlineData?.mimeType || p.inline_data?.mime_type || '').startsWith('audio') || !(p.inlineData?.mimeType || p.inline_data?.mime_type)));
+                const hasText = parts.some((p) => p.text);
+                console.log('[EduLens] serverContent:', keys, 'parts:', parts.length, hasAudio ? 'AUDIO' : '', hasText ? 'TEXT' : '', parts.map((p) => Object.keys(p)));
+              } else {
+                console.log('[EduLens] msg:', keys);
+              }
             }
             if (msg.type === 'error') {
               serverErrorRef.current = true;
@@ -111,18 +124,40 @@ export default function App() {
             }
             if (msg.setupComplete || msg.setup_complete) {
               audioPlayerRef.current?.playTestSound?.();
-              setTimeout(() => {
-                ws.send(createProblemTrigger(submitMode, imageBase64, text));
-              }, 300);
+
+              const sendTrigger = () => {
+                const trigger = createProblemTrigger(submitMode, imageBase64, text);
+                if (debugAudio) {
+                  const t = JSON.parse(trigger);
+                  console.log('[EduLens] Sending problem trigger, turnComplete:', t.clientContent?.turnComplete, 'parts:', t.clientContent?.turns?.[0]?.parts?.length);
+                }
+                ws.send(trigger);
+              };
+
               if (!isMuted) {
                 navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } })
                   .then((micStream) => {
+                    if (debugAudio) console.log('[EduLens] Mic granted, starting audio capture');
                     streamRef.current = micStream;
+                    let micChunkCount = 0;
                     return startAudioCapture(micStream, (base64) => {
-                      if (ws.readyState === 1) ws.send(createAudioInput(base64));
+                      if (ws.readyState === 1) {
+                        ws.send(createAudioInput(base64));
+                        if (debugAudio && ++micChunkCount % 50 === 0) console.log('[EduLens] Mic sent', micChunkCount, 'chunks');
+                      }
                     });
                   })
-                  .catch(() => {});
+                  .then(() => {
+                    if (debugAudio) console.log('[EduLens] Audio capture started');
+                    sendTrigger();
+                  })
+                  .catch((err) => {
+                    console.warn('[EduLens] Mic failed:', err?.message || err);
+                    if (debugAudio) console.log('[EduLens] getUserMedia error:', err);
+                    sendTrigger();
+                  });
+              } else {
+                setTimeout(sendTrigger, 800);
               }
               return;
             }
@@ -138,8 +173,8 @@ export default function App() {
             }
             const rtParts = (msg.realtimeOutput ?? msg.realtime_output)?.mediaChunks ?? (msg.realtimeOutput ?? msg.realtime_output)?.media_chunks ?? [];
             for (const p of rtParts) {
-              const mime = (p.mimeType ?? p.mime_type ?? '').toLowerCase();
-              if (mime.startsWith('audio/pcm') && p.data) audioChunks.push(p.data);
+              const rtMime = (p.mimeType ?? p.mime_type ?? '').toLowerCase();
+              if (rtMime.startsWith('audio/pcm') && p.data) audioChunks.push(p.data);
             }
             if (debugAudio && audioChunks.length > 0) {
               console.log('[EduLens] Playing', audioChunks.length, 'audio chunk(s)');
@@ -151,11 +186,13 @@ export default function App() {
         };
 
         ws.onerror = () => {
+          if (debugAudio) console.log('[EduLens] WebSocket error');
           setError('Connection error. Check your API key and network.');
           setStatus('error');
         };
 
         ws.onclose = (event) => {
+          if (debugAudio) console.log('[EduLens] WebSocket closed:', event.code, event.reason);
           if (!userClosedRef.current && !serverErrorRef.current) {
             const reason = event.reason || '';
             const code = event.code;
@@ -356,7 +393,10 @@ export default function App() {
           <div className="session">
             <div className="session-hero">
               <span className="live-badge">Live</span>
-              <p>EduLens is here. Follow along, ask anything, or say "next step" when ready.</p>
+              <p>EduLens is here. Follow along, ask anything, or say &quot;next step&quot; when ready.</p>
+              {window.location.search.includes('debug=1') && (
+                <p className="debug-hint">Debug on — check console for [EduLens] logs</p>
+              )}
             </div>
             <div className="session-tips">
               <p>{SESSION_TIPS[tipIndex]}</p>
@@ -384,7 +424,7 @@ export default function App() {
 
       <footer className="footer">
         <img src="/logo.png" alt="" className="footer-logo" aria-hidden />
-        <p>Powered by Gemini Live API · Talk naturally or say &quot;next step&quot;, &quot;repeat&quot;, &quot;I&apos;m stuck&quot;</p>
+        <p>Powered by Gemini Live API · Say &quot;next step&quot;, &quot;repeat&quot;, &quot;I&apos;m stuck&quot; · No voice? Add ?debug=1 and open console</p>
       </footer>
     </div>
   );

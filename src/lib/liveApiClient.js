@@ -36,6 +36,7 @@ export function createSetupMessage() {
         },
       },
       systemInstruction: {
+        role: 'system',
         parts: [{ text: SocraticSystemInstruction }],
       },
     },
@@ -56,6 +57,7 @@ export function createSetupMessageFallback() {
         },
       },
       systemInstruction: {
+        role: 'system',
         parts: [{ text: SocraticSystemInstruction }],
       },
     },
