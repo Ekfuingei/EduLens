@@ -415,6 +415,30 @@
   opacity: 0.9;
 }
 
+.edulens-response {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(42, 157, 143, 0.08);
+  border-radius: var(--radius-md);
+  border-left: 4px solid var(--teal);
+}
+
+.edulens-response-label {
+  margin: 0 0 0.4rem 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--teal);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.edulens-response-text {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
 @keyframes sessionEnter {
   from {
     opacity: 0;

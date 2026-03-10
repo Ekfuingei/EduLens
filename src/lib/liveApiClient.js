@@ -27,6 +27,7 @@ export function createSetupMessage() {
   return JSON.stringify({
     setup: {
       model: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
+      outputAudioTranscription: {},
       generationConfig: {
         responseModalities: ['AUDIO'],
         speechConfig: {
@@ -48,6 +49,7 @@ export function createSetupMessageFallback() {
   return JSON.stringify({
     setup: {
       model: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
+      outputAudioTranscription: {},
       generationConfig: {
         responseModalities: ['AUDIO'],
         speechConfig: {

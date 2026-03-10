@@ -37,6 +37,7 @@ export default function App() {
   const [tipIndex, setTipIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [sentFeedback, setSentFeedback] = useState(null);
+  const [lastResponseText, setLastResponseText] = useState(null);
 
   const wsRef = useRef(null);
   const audioPlayerRef = useRef(null);
@@ -164,14 +165,23 @@ export default function App() {
               return;
             }
             const audioChunks = [];
+            const textParts = [];
             const parts = msg.serverContent?.modelTurn?.parts || msg.server_content?.model_turn?.parts || [];
             for (const part of parts) {
+              if (part.text) textParts.push(part.text);
               const inline = part.inlineData ?? part.inline_data;
               const data = inline?.data;
               const mime = (inline?.mimeType ?? inline?.mime_type ?? '').toLowerCase();
               if (data && (mime.startsWith('audio/pcm') || !mime)) {
                 audioChunks.push(data);
               }
+            }
+            const outputTranscription = msg.serverContent?.outputTranscription ?? msg.server_content?.output_transcription;
+            const transcriptText = outputTranscription?.text ?? outputTranscription?.transcript;
+            if (textParts.length > 0) {
+              setLastResponseText(textParts.join(' ').trim());
+            } else if (transcriptText?.trim()) {
+              setLastResponseText((prev) => (prev ? `${prev} ${transcriptText.trim()}` : transcriptText.trim()));
             }
             const rtParts = (msg.realtimeOutput ?? msg.realtime_output)?.mediaChunks ?? (msg.realtimeOutput ?? msg.realtime_output)?.media_chunks ?? [];
             for (const p of rtParts) {
@@ -288,6 +298,8 @@ export default function App() {
     streamRef.current = null;
     setMode(null);
     setCapturedImage(null);
+    setLastResponseText(null);
+    setSentFeedback(null);
     if (returnToIdle) setStatus('idle');
   }, [stopCapture]);
 
@@ -438,6 +450,12 @@ export default function App() {
             </div>
             {sentFeedback && (
               <p className="sent-feedback">Sent &quot;{sentFeedback}&quot; — waiting for EduLens…</p>
+            )}
+            {lastResponseText && (
+              <div className="edulens-response">
+                <p className="edulens-response-label">EduLens says:</p>
+                <p className="edulens-response-text">{lastResponseText}</p>
+              </div>
             )}
             <button type="button" className="btn-stop" onClick={stopAll}>
               End session
