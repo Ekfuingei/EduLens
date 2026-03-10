@@ -5,6 +5,7 @@ import {
   createAudioInput,
   createImageInput,
   createProblemTrigger,
+  createTextMessage,
   createRealtimeInput,
 } from './liveApiClient';
 
@@ -70,6 +71,17 @@ describe('liveApiClient', () => {
       const msg = JSON.parse(createProblemTrigger('snap', 'base64img', null));
       expect(msg.clientContent.turns[0].parts[0].inlineData.mimeType).toBe('image/jpeg');
       expect(msg.clientContent.turns[0].parts[1].text).toContain('step');
+    });
+  });
+
+  describe('createTextMessage', () => {
+    it('returns clientContent with user turn and turnComplete', () => {
+      const msg = JSON.parse(createTextMessage('next step'));
+      expect(msg).toHaveProperty('clientContent');
+      expect(msg.clientContent.turns).toHaveLength(1);
+      expect(msg.clientContent.turns[0].role).toBe('user');
+      expect(msg.clientContent.turns[0].parts[0].text).toBe('next step');
+      expect(msg.clientContent.turnComplete).toBe(true);
     });
   });
 

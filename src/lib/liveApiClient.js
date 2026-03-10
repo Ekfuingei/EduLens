@@ -95,6 +95,16 @@ export function createProblemTrigger(mode, imageBase64, typedText) {
   });
 }
 
+/** Send a text message (e.g. "next step", "repeat") — use when voice isn't working */
+export function createTextMessage(text) {
+  return JSON.stringify({
+    clientContent: {
+      turns: [{ role: 'user', parts: [{ text: String(text).trim() || 'next step' }] }],
+      turnComplete: true,
+    },
+  });
+}
+
 export function createAudioInput(base64Pcm) {
   return createRealtimeInput({
     mediaChunks: [

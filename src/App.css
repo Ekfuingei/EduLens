@@ -380,6 +380,34 @@
   animation: sessionEnter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
+.session-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.btn-quick {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--teal);
+  background: rgba(42, 157, 143, 0.1);
+  border: 1px solid rgba(42, 157, 143, 0.3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.btn-quick:hover {
+  background: rgba(42, 157, 143, 0.2);
+  transform: translateY(-1px);
+}
+
+.btn-quick:active {
+  transform: translateY(0);
+}
+
 @keyframes sessionEnter {
   from {
     opacity: 0;

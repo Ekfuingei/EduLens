@@ -5,6 +5,7 @@ import {
   createAudioInput,
   createImageInput,
   createProblemTrigger,
+  createTextMessage,
 } from './lib/liveApiClient';
 import { createAudioPlayer } from './lib/audioPlayer';
 
@@ -252,6 +253,12 @@ export default function App() {
     setMode(null);
   }, [typedText, connectAndExplain]);
 
+  const sendToTutor = useCallback((text) => {
+    if (wsRef.current?.readyState === 1) {
+      wsRef.current.send(createTextMessage(text));
+    }
+  }, []);
+
   const stopAll = useCallback((returnToIdle = true) => {
     userClosedRef.current = returnToIdle;
     audioPlayerRef.current?.stop();
@@ -393,13 +400,24 @@ export default function App() {
           <div className="session">
             <div className="session-hero">
               <span className="live-badge">Live</span>
-              <p>EduLens is here. Follow along, ask anything, or say &quot;next step&quot; when ready.</p>
+              <p>EduLens is here. Say it or tap the buttons below when ready.</p>
               {window.location.search.includes('debug=1') && (
                 <p className="debug-hint">Debug on — check console for [EduLens] logs</p>
               )}
             </div>
             <div className="session-tips">
               <p>{SESSION_TIPS[tipIndex]}</p>
+            </div>
+            <div className="session-quick-actions">
+              <button type="button" className="btn-quick" onClick={() => sendToTutor('next step')}>
+                Next step
+              </button>
+              <button type="button" className="btn-quick" onClick={() => sendToTutor('repeat')}>
+                Repeat
+              </button>
+              <button type="button" className="btn-quick" onClick={() => sendToTutor('I\'m stuck')}>
+                I'm stuck
+              </button>
             </div>
             <button type="button" className="btn-stop" onClick={stopAll}>
               End session
