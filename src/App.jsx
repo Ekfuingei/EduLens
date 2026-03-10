@@ -41,6 +41,7 @@ export default function App() {
 
   const wsRef = useRef(null);
   const audioPlayerRef = useRef(null);
+  const [debugLog, setDebugLog] = useState([]);
   const previewVideoRef = useRef(null);
   const streamRef = useRef(null);
   const userClosedRef = useRef(false);
@@ -106,17 +107,26 @@ export default function App() {
             const msg = JSON.parse(event.data);
             if (debugAudio) {
               const keys = Object.keys(msg);
+              let summary = '';
               if (msg.setupComplete || msg.setup_complete) {
+                summary = 'setupComplete';
                 console.log('[EduLens] setupComplete received');
+              } else if (msg.type === 'error') {
+                summary = `error: ${msg.message || '?'}`;
               } else if (msg.serverContent || msg.server_content) {
                 const sc = msg.serverContent || msg.server_content;
                 const mt = sc.modelTurn || sc.model_turn;
                 const parts = mt?.parts || [];
                 const hasAudio = parts.some((p) => (p.inlineData?.data || p.inline_data?.data) && ((p.inlineData?.mimeType || p.inline_data?.mime_type || '').startsWith('audio') || !(p.inlineData?.mimeType || p.inline_data?.mime_type)));
                 const hasText = parts.some((p) => p.text);
+                summary = `serverContent: ${parts.length} parts${hasAudio ? ' AUDIO' : ''}${hasText ? ' TEXT' : ''}`;
                 console.log('[EduLens] serverContent:', keys, 'parts:', parts.length, hasAudio ? 'AUDIO' : '', hasText ? 'TEXT' : '', parts.map((p) => Object.keys(p)));
               } else {
+                summary = keys.length ? `msg: ${keys.join(', ')}` : 'msg: (empty)';
                 console.log('[EduLens] msg:', keys);
+              }
+              if (summary) {
+                setDebugLog((prev) => [...prev.slice(-7), summary]);
               }
             }
             if (msg.type === 'error') {
@@ -130,10 +140,11 @@ export default function App() {
 
               const sendTrigger = () => {
                 const trigger = createProblemTrigger(submitMode, imageBase64, text);
-                if (debugAudio) {
-                  const t = JSON.parse(trigger);
-                  console.log('[EduLens] Sending problem trigger, turnComplete:', t.clientContent?.turnComplete, 'parts:', t.clientContent?.turns?.[0]?.parts?.length);
-                }
+              if (debugAudio) {
+                const t = JSON.parse(trigger);
+                console.log('[EduLens] Sending problem trigger, turnComplete:', t.clientContent?.turnComplete, 'parts:', t.clientContent?.turns?.[0]?.parts?.length);
+                setDebugLog((prev) => [...prev.slice(-7), 'Sent: problem trigger']);
+              }
                 ws.send(trigger);
               };
 
@@ -277,7 +288,10 @@ export default function App() {
     }
     try {
       ws.send(createTextMessage(text));
-      if (debug) console.log('[EduLens] Sent:', text);
+      if (debug) {
+        console.log('[EduLens] Sent:', text);
+        setDebugLog((prev) => [...prev.slice(-7), `Sent: "${text}"`]);
+      }
       setSentFeedback(text);
       setTimeout(() => setSentFeedback(null), 2500);
     } catch (err) {
@@ -300,6 +314,7 @@ export default function App() {
     setCapturedImage(null);
     setLastResponseText(null);
     setSentFeedback(null);
+    setDebugLog([]);
     if (returnToIdle) setStatus('idle');
   }, [stopCapture]);
 
@@ -431,7 +446,18 @@ export default function App() {
               <span className="live-badge">Live</span>
               <p>EduLens is here. Say it or tap the buttons below when ready.</p>
               {window.location.search.includes('debug=1') && (
-                <p className="debug-hint">Debug on — check console for [EduLens] logs</p>
+                <div className="debug-panel">
+                  <p className="debug-hint">Debug — last messages from Gemini:</p>
+                  {debugLog.length === 0 ? (
+                    <p className="debug-empty">No messages yet. Submit a problem and tap Next step.</p>
+                  ) : (
+                    <ul className="debug-log">
+                      {debugLog.map((line, i) => (
+                        <li key={i}>{line}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               )}
             </div>
             <div className="session-tips">
@@ -480,7 +506,7 @@ export default function App() {
 
       <footer className="footer">
         <img src="/logo.png" alt="" className="footer-logo" aria-hidden />
-        <p>Powered by Gemini Live API · Say &quot;next step&quot;, &quot;repeat&quot;, &quot;I&apos;m stuck&quot; · No voice? Add ?debug=1 and open console</p>
+        <p>Powered by Gemini Live API · No response? Add <strong>?debug=1</strong> to the URL to see what&apos;s happening</p>
       </footer>
     </div>
   );
